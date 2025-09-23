@@ -1,5 +1,6 @@
 {
   "name": "halfwidth-to-fullwidth",
+  "homepage": "https://aikchun.github.io/halfwidth-to-fullwidth/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
