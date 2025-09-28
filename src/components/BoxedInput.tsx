@@ -11,7 +11,7 @@ export const BoxedInput = styled(InputBase)(({ theme }) => ({
     position: "relative",
     // backgroundColor: '#F3F6F9',
     border: "1px solid",
-    borderColor: "#E0E3E7",
+    // borderColor: "#E0E3E7",
     // fontSize: 16,
     padding: "10px 12px",
     transition: theme.transitions.create([
@@ -41,4 +41,8 @@ export const BoxedInput = styled(InputBase)(({ theme }) => ({
       borderColor: "#2D3843",
     }),
   },
+  "&.Mui-error .MuiInputBase-input": {
+    borderColor: '#d32f2f'
+  }
+
 }));

@@ -12,21 +12,27 @@ const INITIAL_FORM_STATE = {
   fields: {
     lastNameKatakana: {
       value: "",
+      touched: false,
     },
     firstNameKatakana: {
       value: "",
+      touched: false,
     },
     lastNameKanji: {
       value: "",
+      touched: false,
     },
     firstNameKanji: {
       value: "",
+      touched: false,
     },
     lastName: {
       value: "",
+      touched: false,
     },
     firstName: {
       value: "",
+      touched: false,
     },
   },
 };
@@ -49,6 +55,14 @@ function basicDetailsReducer(state, action) {
         fields: {
           ...state.fields,
           [action.field]: { ...state[action.field], value: action.value },
+        },
+      };
+    case "ON_BLUR":
+      return {
+        ...state,
+        fields: {
+          ...state.fields,
+          [action.field]: { ...state[action.field], touched: true },
         },
       };
     case "RESET":
