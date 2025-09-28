@@ -1,9 +1,9 @@
-import { useCallback } from "react";
+import { useEffect } from "react";
 
 import Grid from "@mui/material/Grid";
 
 import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
+import FormControl, { type FormControlProps } from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 
@@ -14,30 +14,60 @@ import { BoxedInput } from "./BoxedInput";
 import { HalfSizedFormControl } from "./HalfSizedFormControl";
 import { halfWidthToFullWidth } from "../utils/halfWidthToFullWidth";
 
+import { useForm } from "../hooks/useForm";
+import { standardKatakanaValidator } from "../utils/standard-katakana-validator";
+import { standardKanjiValidator } from "../utils/standard-kanji-validator";
+
+interface BasicDetails {
+  lastNameKatakana: string;
+}
+
 export function BasicDetails(props) {
   const {
     onBack,
     onSubmit,
     formProps,
-    handleBasicDetailsFormFieldChange,
+    // handleBasicDetailsFormFieldChange,
     shouldConvertToFullWidth,
     onShouldConvertToFullWidthChange,
   } = props;
 
-  const fullWidthFieldOnchange = useCallback(
-    (field) => (e) => {
-      const value = shouldConvertToFullWidth
-        ? halfWidthToFullWidth(e.target.value)
-        : e.target.value;
-
-      handleBasicDetailsFormFieldChange(field, value);
+  const useFormProps = {
+    fields: {
+      lastNameKanji: {
+        value: "",
+        onBlur: (value: string) => {
+          return shouldConvertToFullWidth ? halfWidthToFullWidth(value) : value;
+        },
+      },
+      firstNameKanji: {
+        value: "",
+        onBlur: (value: string) => {
+          return shouldConvertToFullWidth ? halfWidthToFullWidth(value) : value;
+        },
+      },
+      lastNameKatakana: {
+        value: "",
+        onChange: (value: string) => {
+          return shouldConvertToFullWidth ? halfWidthToFullWidth(value) : value;
+        },
+      },
+      firstNameKatakana: {
+        value: "",
+        onChange: (value: string) => {
+          return shouldConvertToFullWidth ? halfWidthToFullWidth(value) : value;
+        },
+      },
+      lastName: {
+        value: "",
+      },
+      firstName: {
+        value: "",
+      },
     },
-    [shouldConvertToFullWidth],
-  );
-
-  const inputOnChange = (field) => (e) => {
-    handleBasicDetailsFormFieldChange(field, e.target.value);
   };
+
+  const { fields, reset } = useForm(useFormProps);
 
   const katakanaFields = [
     {
@@ -45,12 +75,17 @@ export function BasicDetails(props) {
       label: {
         value: "セイ",
         htmlFor: "last-name-katakana-input",
+        error:
+          fields.lastNameKatakana.touched &&
+          !standardKatakanaValidator(formProps.fields.lastNameKatakana.value),
       },
       input: {
         id: "last-name-katakana-input",
         name: "lastNameKatakana",
-        value: formProps.fields.lastNameKatakana.value,
-        onChange: fullWidthFieldOnchange("lastNameKatakana"),
+        ...fields.lastNameKatakana,
+        error:
+          fields.lastNameKatakana.touched &&
+          !standardKatakanaValidator(formProps.fields.lastNameKatakana.value),
       },
     },
     {
@@ -58,27 +93,37 @@ export function BasicDetails(props) {
       label: {
         value: "メイ",
         htmlFor: "first-name-katakana-input",
+        error:
+          fields.firstNameKatakana.touched &&
+          !standardKatakanaValidator(formProps.fields.firstNameKatakana.value),
       },
       input: {
         id: "first-name-katakana-input",
         name: "firstNameKatakana",
-        value: formProps.fields.firstNameKatakana.value,
-        onChange: fullWidthFieldOnchange("firstNameKatakana"),
+        ...fields.firstNameKatakana,
+        error: !standardKatakanaValidator(
+          formProps.fields.firstNameKatakana.value,
+        ),
       },
     },
   ];
+
+  const isLastNameKanjiValid = standardKanjiValidator(
+    formProps.fields.lastNameKanji.value,
+  );
   const kanjiFields = [
     {
       variant: "standard",
       label: {
         value: "姓",
         htmlFor: "last-name-kanji-input",
+        error: !standardKanjiValidator(formProps.fields.lastNameKanji.value),
       },
       input: {
         id: "last-name-kanji-input",
         name: "lastNameKanji",
-        value: formProps.fields.lastNameKanji.value,
-        onChange: fullWidthFieldOnchange("lastNameKanji"),
+        ...fields.lastNameKanji,
+        error: !isLastNameKanjiValid,
       },
     },
     {
@@ -86,12 +131,13 @@ export function BasicDetails(props) {
       label: {
         value: "名",
         htmlFor: "first-name-kanji-input",
+        error: !standardKanjiValidator(formProps.fields.firstNameKanji.value),
       },
       input: {
         id: "first-name-kanji-input",
         name: "firstNameKanji",
-        value: formProps.fields.firstNameKanji.value,
-        onChange: fullWidthFieldOnchange("firstNameKanji"),
+        ...fields.firstNameKanji,
+        error: !standardKanjiValidator(formProps.fields.firstNameKanji.value),
       },
     },
   ];
@@ -105,8 +151,7 @@ export function BasicDetails(props) {
       input: {
         id: "last-name-input",
         name: "lastName",
-        value: formProps.fields.lastName.value,
-        onChange: inputOnChange("lastName"),
+        ...fields.lastName,
       },
     },
     {
@@ -118,11 +163,14 @@ export function BasicDetails(props) {
       input: {
         id: "first-name",
         name: "firstName",
-        value: formProps.fields.firstName.value,
-        onChange: inputOnChange("firstName"),
+        ...fields.firstName,
       },
     },
   ];
+
+  useEffect(() => {
+    reset();
+  }, [shouldConvertToFullWidth]);
   return (
     <Box>
       <Grid
@@ -161,19 +209,20 @@ export function BasicDetails(props) {
             spacing="16px"
             direction="row"
           >
-            {kanjiFields.map((f) => (
-              <HalfSizedFormControl variant={f.variant} key={f.input.name}>
-                <InputLabel shrink htmlFor={f.label.htmlFor}>
-                  {f.label.value}
-                </InputLabel>
-                <BoxedInput
-                  id={f.input.id}
-                  name={f.input.name}
-                  onChange={f.input.onChange}
-                  value={f.input.value}
-                />
-              </HalfSizedFormControl>
-            ))}
+            {kanjiFields.map(
+              ({ input: inputProps, label: labelProps, ...rest }) => (
+                <HalfSizedFormControl
+                  variant={rest.variant}
+                  key={inputProps.name}
+                  error={labelProps.error}
+                >
+                  <InputLabel shrink htmlFor={labelProps.htmlFor}>
+                    {labelProps.value}
+                  </InputLabel>
+                  <BoxedInput {...inputProps} />
+                </HalfSizedFormControl>
+              ),
+            )}
           </Grid>
           <Grid
             container
@@ -181,19 +230,19 @@ export function BasicDetails(props) {
             spacing="16px"
             direction="row"
           >
-            {katakanaFields.map((f) => (
-              <HalfSizedFormControl variant={f.variant} key={f.input.name}>
-                <InputLabel shrink htmlFor={f.label.htmlFor}>
-                  {f.label.value}
-                </InputLabel>
-                <BoxedInput
-                  id={f.input.id}
-                  name={f.input.name}
-                  onChange={f.input.onChange}
-                  value={f.input.value}
-                />
-              </HalfSizedFormControl>
-            ))}
+            {katakanaFields.map(
+              ({ input: inputProps, label: labelProps, ...rest }) => (
+                <HalfSizedFormControl
+                  variant={rest.variant as FormControlProps["variant"]}
+                  key={inputProps.name}
+                >
+                  <InputLabel shrink htmlFor={labelProps.htmlFor}>
+                    {labelProps.value}
+                  </InputLabel>
+                  <BoxedInput {...inputProps} />
+                </HalfSizedFormControl>
+              ),
+            )}
           </Grid>
           <Grid
             container
@@ -201,19 +250,19 @@ export function BasicDetails(props) {
             spacing="16px"
             direction="row"
           >
-            {nameFields.map((f) => (
-              <HalfSizedFormControl variant={f.variant} key={f.input.name}>
-                <InputLabel shrink htmlFor={f.label.htmlFor}>
-                  {f.label.value}
-                </InputLabel>
-                <BoxedInput
-                  id={f.input.id}
-                  name={f.input.name}
-                  onChange={f.input.onChange}
-                  value={f.input.value}
-                />
-              </HalfSizedFormControl>
-            ))}
+            {nameFields.map(
+              ({ input: inputProps, label: labelProps, ...rest }) => (
+                <HalfSizedFormControl
+                  variant={rest.variant as FormControlProps["variant"]}
+                  key={inputProps.name}
+                >
+                  <InputLabel shrink htmlFor={labelProps.htmlFor}>
+                    {labelProps.value}
+                  </InputLabel>
+                  <BoxedInput {...inputProps} />
+                </HalfSizedFormControl>
+              ),
+            )}
           </Grid>
         </Grid>
       </Box>
