@@ -1,22 +1,29 @@
 import { useMemo, useReducer } from "react";
 import type { SyntheticEvent } from "react";
+import type { AddressSchema } from "../components/Address";
 
 interface Field {
 	onChange?: (value: string, field: string, e: SyntheticEvent) => string;
 	onBlur?: (value: string, field: string, e: SyntheticEvent) => string;
 	value: string;
 }
-interface UseFormProps {
+export interface UseFormProps<T> {
 	fields: {
 		[key: string]: Field;
 	};
+	validate?: (state: FormReducerState<T>) => ValidateResult<T>;
 }
 
-interface UseFormResultField {
-	value: string;
+export type ValidateResult<T> = {
+	[key in keyof T]?: string;
+};
+
+export interface UseFormResultField {
+	value: string | boolean;
 	touched: boolean;
 	onChange: (e: SyntheticEvent) => void;
 	onBlur: (e: SyntheticEvent) => void;
+	error: string;
 }
 
 type FormReducerActionType = "ON_CHANGE" | "ON_BLUR" | "RESET";
@@ -31,13 +38,14 @@ interface FormReducerAction<T> {
 interface FormField {
 	value: string;
 	touched: boolean;
+	error: string;
 }
 
-type FormReducerStateFields<T> = {
+export type FormReducerStateFields<T> = {
 	[key in keyof T]?: FormField;
 };
 
-interface FormReducerState<T> {
+export interface FormReducerState<T> {
 	fields: FormReducerStateFields<T>;
 }
 
@@ -51,58 +59,46 @@ function formReducer<T>(
 
 	switch (action.type) {
 		case "ON_CHANGE":
-			return {
-				...state,
-				fields: {
-					...state.fields,
-					[action.field]: {
-						...(state.fields[action.field] ?? {
-							value: "",
-							touched: false,
-						}),
-						value: action.value,
-					},
-				},
-			};
-		case "ON_BLUR":
-			return {
-				...state,
-				fields: {
-					...state.fields,
-					[action.field]: {
-						...(state.fields[action.field] ?? {
-							value: "",
-							touched: true,
-						}),
-						value: action.value,
-						touched: true,
-					},
-				},
-			};
-		case "RESET":
 			return action.state;
+		case "ON_BLUR":
+			return action.state;
+		case "RESET":
+			return (
+				action.state ??
+				Object.keys(state.fields).reduce(
+					(acc, key) => ({
+						...acc,
+						fields: {
+							...acc.fields,
+							[key]: { value: "", touched: false },
+						},
+					}),
+					{ fields: {} },
+				)
+			);
 	}
 	return state;
 }
 
-export function useForm(props: UseFormProps) {
+export function useForm<T>(props: UseFormProps<T>) {
 	const { fields: formPropsFields } = props;
 
 	const initialState = useMemo(() => {
 		const initialStateResult = {
-			fields: {} as Record<keyof UseFormProps["fields"], FormField>,
+			fields: {} as Record<keyof UseFormProps<T>["fields"], FormField>,
 		};
 		Object.keys(formPropsFields).forEach((key) => {
 			initialStateResult.fields[key] = {
 				value: formPropsFields[key].value,
 				touched: false,
+				error: false,
 			};
 		});
 		return initialStateResult;
 	}, [props]);
 
 	const [state, dispatch] = useReducer(
-		formReducer<UseFormProps["fields"]>,
+		formReducer<UseFormProps<T>["fields"]>,
 		initialState ?? { fields: {} },
 	);
 
@@ -113,7 +109,25 @@ export function useForm(props: UseFormProps) {
 				? onChange(targetValue, field, e)
 				: targetValue;
 
-			dispatch({ type: "ON_CHANGE", value, field });
+			const newState = {
+				fields: {} as FormReducerState<T>["fields"],
+				...state,
+			} as FormReducerState<T>;
+
+			newState.fields[field].value = value;
+
+			const errors: ValidateResult<T> = props.validate
+				? props.validate(newState)
+				: ({} as ValidateResult<T>);
+
+			Object.keys(newState.fields).forEach((key) => {
+				newState.fields[key].error = errors[key] ?? false;
+				if (key === field) {
+					newState.fields[field].value = value;
+				}
+			});
+
+			dispatch({ type: "ON_CHANGE", state: newState });
 		};
 
 	const createHandleOnBlur =
@@ -121,12 +135,30 @@ export function useForm(props: UseFormProps) {
 			const targetValue = (e.target as HTMLInputElement).value;
 			const value = onBlur ? onBlur(targetValue, field, e) : targetValue;
 
-			dispatch({ type: "ON_BLUR", value, field });
+			const newState = {
+				fields: {} as FormReducerState<T>["fields"],
+				...state,
+			} as FormReducerState<T>;
+
+			newState.fields[field].touched = true;
+
+			const errors: ValidateResult<T> = props.validate
+				? props.validate(newState)
+				: ({} as ValidateResult<T>);
+
+			Object.keys(newState.fields).forEach((key) => {
+				newState.fields[key].error = errors[key] ?? false;
+				if (key === field) {
+					newState.fields[field].value = value;
+				}
+			});
+
+			dispatch({ type: "ON_BLUR", state: newState });
 		};
 
 	const fields = useMemo(() => {
 		const formResult = {} as Record<
-			keyof UseFormProps["fields"],
+			keyof AddressSchemaz,
 			UseFormResultField
 		>;
 
@@ -135,11 +167,12 @@ export function useForm(props: UseFormProps) {
 		}
 
 		Object.keys(state.fields).forEach((key) => {
-			const value = state.fields[key]?.value;
-			const touched = !!state.fields[key]?.touched as boolean;
+			const field = state.fields[key] ?? ({} as UseFormResultField);
+			const { value, touched, error } = field;
 			formResult[key] = {
 				value,
 				touched,
+				error,
 				onChange: createHandleOnChange(
 					formPropsFields[key as string].onChange,
 					key,
@@ -154,5 +187,5 @@ export function useForm(props: UseFormProps) {
 		dispatch({ type: "RESET", state: initialState });
 	};
 
-	return { fields, reset };
+	return { fields, reset, dispatch };
 }

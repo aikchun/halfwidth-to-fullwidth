@@ -42,7 +42,7 @@ export const BoxedInput = styled(InputBase)(({ theme }) => ({
     }),
   },
   "&.Mui-error .MuiInputBase-input": {
-    borderColor: '#d32f2f'
-  }
-
+    borderColor: "#d32f2f",
+    color: "#d32f2f",
+  },
 }));
